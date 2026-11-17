@@ -1,4 +1,4 @@
-use super::discovery::{discover_runtime_sockets, DiscoveredSocket};
+use super::discovery::discover_runtime_sockets;
 use super::{ContainerRuntime, RuntimeInfo};
 use crate::core::errors::VesselsError;
 use crate::core::models::{Container, ContainerStatus, MountInfo, PortMapping};

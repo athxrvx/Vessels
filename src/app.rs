@@ -7,11 +7,13 @@ use crate::ui::pages;
 
 use cosmic::app::Core;
 use cosmic::executor;
-use cosmic::widget::{button, column, container, divider, row, space, text};
-use cosmic::{Action, Application, Element, Task};
+use cosmic::widget::icon;
+use cosmic::widget::nav_bar;
+use cosmic::{Action, Application, ApplicationExt, Element, Task};
 
 pub struct AppModel {
     core: Core,
+    nav_model: nav_bar::Model,
     active_page: Page,
     config: AppConfig,
     containers: Vec<Container>,
@@ -36,6 +38,7 @@ pub enum Message {
     ContainerActionCompleted(Result<String, String>),
     SearchQueryChanged(String),
     FilterStatus(Option<ContainerStatus>),
+    #[allow(dead_code)]
     DismissError,
 }
 
@@ -56,8 +59,46 @@ impl Application for AppModel {
 
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Action<Self::Message>>) {
         let config = AppConfig::load();
-        let app = Self {
+
+        // Native COSMIC nav_bar::Model matching system design guidelines
+        let nav_model = nav_bar::Model::builder()
+            .insert(|b| {
+                b.text(Page::Containers.title())
+                    .icon(icon::from_name("utilities-terminal-symbolic"))
+                    .data(Page::Containers)
+                    .activate()
+            })
+            .insert(|b| {
+                b.text(Page::Overview.title())
+                    .icon(icon::from_name("view-dashboard-symbolic"))
+                    .data(Page::Overview)
+            })
+            .insert(|b| {
+                b.text(Page::Hub.title())
+                    .icon(icon::from_name("system-software-install-symbolic"))
+                    .data(Page::Hub)
+            })
+            .insert(|b| {
+                b.text(Page::Projects.title())
+                    .icon(icon::from_name("folder-development-symbolic"))
+                    .data(Page::Projects)
+            })
+            .insert(|b| {
+                b.text(Page::Editors.title())
+                    .icon(icon::from_name("accessories-text-editor-symbolic"))
+                    .data(Page::Editors)
+                    .divider_above()
+            })
+            .insert(|b| {
+                b.text(Page::Settings.title())
+                    .icon(icon::from_name("preferences-system-symbolic"))
+                    .data(Page::Settings)
+            })
+            .build();
+
+        let mut app = Self {
             core,
+            nav_model,
             active_page: Page::Containers, // PRD Section 3.1: Default landing page is Containers
             config,
             containers: Vec::new(),
@@ -67,6 +108,8 @@ impl Application for AppModel {
             is_loading: true,
             error_message: None,
         };
+
+        app.set_header_title("Containers — Vessels".into());
 
         // Automatically connect to container runtime on startup
         let task = Task::perform(
@@ -83,10 +126,24 @@ impl Application for AppModel {
         (app, task)
     }
 
+    fn nav_model(&self) -> Option<&nav_bar::Model> {
+        Some(&self.nav_model)
+    }
+
+    fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<Action<Self::Message>> {
+        self.nav_model.activate(id);
+        if let Some(page) = self.nav_model.data::<Page>(id) {
+            self.active_page = *page;
+            self.set_header_title(format!("{} — Vessels", page.title()));
+        }
+        Task::none()
+    }
+
     fn update(&mut self, message: Self::Message) -> Task<Action<Self::Message>> {
         match message {
             Message::Navigate(page) => {
                 self.active_page = page;
+                self.set_header_title(format!("{} — Vessels", page.title()));
                 Task::none()
             }
             Message::ConnectRuntime => {
@@ -108,7 +165,7 @@ impl Application for AppModel {
                 match res {
                     Ok(info) => {
                         self.runtime_info = Some(info);
-                        // Trigger immediate container refresh upon successful connection
+                        self.error_message = None;
                         self.update(Message::RefreshContainers)
                     }
                     Err(e) => {
@@ -230,29 +287,14 @@ impl Application for AppModel {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        // Navigation Sidebar (PRD Section 3.2)
-        let sidebar = column::with_capacity(8)
-            .spacing(8)
-            .padding(12)
-            .width(cosmic::iced::Length::Fixed(200.0))
-            // Primary destinations
-            .push(self.nav_button(Page::Containers))
-            .push(self.nav_button(Page::Overview))
-            .push(self.nav_button(Page::Hub))
-            .push(self.nav_button(Page::Projects))
-            // Subtle divider (PRD Section 3.2)
-            .push(divider::horizontal::default())
-            // Secondary destinations
-            .push(self.nav_button(Page::Editors))
-            .push(self.nav_button(Page::Settings));
-
-        // Active page body
-        let page_content: Element<'_, Message> = match self.active_page {
+        // Render the active view. COSMIC automatically attaches the native nav_bar in the chrome.
+        match self.active_page {
             Page::Containers => pages::containers::view(
                 &self.containers,
                 &self.search_query,
                 self.status_filter,
                 self.is_loading,
+                self.runtime_info.as_ref(),
             ),
             Page::Overview => pages::overview::view(
                 self.runtime_info.as_ref(),
@@ -266,51 +308,6 @@ impl Application for AppModel {
             Page::Projects => pages::projects::view(),
             Page::Editors => pages::editors::view(),
             Page::Settings => pages::settings::view(&self.config),
-        };
-
-        // Main layout with optional error banner
-        let mut main_content = column::with_capacity(2).width(cosmic::iced::Length::Fill);
-
-        if let Some(ref err) = self.error_message {
-            let error_banner = container(
-                row::with_capacity(3)
-                    .spacing(12)
-                    .align_y(cosmic::iced::Alignment::Center)
-                    .push(text(format!("Error: {}", err)).size(13))
-                    .push(space::horizontal())
-                    .push(button::standard("Dismiss").on_press(Message::DismissError)),
-            )
-            .class(cosmic::theme::Container::Card)
-            .padding(12)
-            .width(cosmic::iced::Length::Fill);
-
-            main_content = main_content.push(error_banner);
         }
-
-        main_content = main_content.push(page_content);
-
-        let app_layout = row::with_capacity(2)
-            .push(sidebar)
-            .push(main_content);
-
-        container(app_layout)
-            .width(cosmic::iced::Length::Fill)
-            .height(cosmic::iced::Length::Fill)
-            .into()
-    }
-}
-
-impl AppModel {
-    fn nav_button<'a>(&self, page: Page) -> Element<'a, Message> {
-        let is_active = self.active_page == page;
-        let mut btn = button::standard(page.title())
-            .on_press(Message::Navigate(page))
-            .width(cosmic::iced::Length::Fill);
-
-        if is_active {
-            btn = btn.class(cosmic::theme::Button::Suggested);
-        }
-
-        btn.into()
     }
 }

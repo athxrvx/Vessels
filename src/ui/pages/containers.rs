@@ -1,6 +1,7 @@
 use crate::app::Message;
 use crate::core::models::{Container, ContainerStatus};
-use cosmic::widget::{button, column, container, row, scrollable, space, text, text_input};
+use crate::runtime::RuntimeInfo;
+use cosmic::widget::{button, column, container, icon, row, scrollable, space, text, text_input};
 use cosmic::Element;
 
 pub fn view<'a>(
@@ -8,10 +9,48 @@ pub fn view<'a>(
     search_query: &'a str,
     selected_status_filter: Option<ContainerStatus>,
     is_loading: bool,
+    runtime_info: Option<&'a RuntimeInfo>,
 ) -> Element<'a, Message> {
-    let mut root = column::with_capacity(5).spacing(24).padding(24);
+    let mut root = column::with_capacity(6).spacing(20).padding(24);
 
-    // 1. Header Area (PRD Section 4.1)
+    // 1. If runtime is not connected, show the guided setup empty state (PRD Section 14.6)
+    if runtime_info.is_none() {
+        let disconnected_card = container(
+            column::with_capacity(5)
+                .spacing(16)
+                .align_x(cosmic::iced::Alignment::Center)
+                .push(icon::from_name("dialog-warning-symbolic").size(48))
+                .push(text::title2("No Container Engine Connected"))
+                .push(
+                    text("Vessels needs a running Podman (or Docker) socket to discover and manage containers.")
+                        .size(14),
+                )
+                .push(
+                    container(
+                        column::with_capacity(2)
+                            .spacing(6)
+                            .align_x(cosmic::iced::Alignment::Center)
+                            .push(text("Start the Podman user service:").size(12))
+                            .push(text("systemctl --user enable --now podman.socket").size(13)),
+                    )
+                    .class(cosmic::theme::Container::Card)
+                    .padding(14),
+                )
+                .push(
+                    button::suggested("Connect to Engine")
+                        .on_press(Message::ConnectRuntime),
+                ),
+        )
+        .class(cosmic::theme::Container::Card)
+        .padding(40)
+        .width(cosmic::iced::Length::Fill)
+        .center_x(cosmic::iced::Length::Fill);
+
+        root = root.push(disconnected_card);
+        return root.into();
+    }
+
+    // 2. Header Area
     let header = row::with_capacity(3)
         .spacing(16)
         .align_y(cosmic::iced::Alignment::Center)
@@ -19,7 +58,7 @@ pub fn view<'a>(
             column::with_capacity(2)
                 .spacing(4)
                 .push(text::title1("Containers"))
-                .push(text("Manage individual containers and manual groups").size(14)),
+                .push(text("Manage local container instances and pods").size(14)),
         )
         .push(space::horizontal())
         .push(
@@ -28,7 +67,7 @@ pub fn view<'a>(
         );
     root = root.push(header);
 
-    // 2. Summary Cards (Total, Running, Stopped - PRD Section 4.1)
+    // 3. Summary Cards (Total, Running, Stopped - PRD Section 4.1)
     let total_count = containers.len();
     let running_count = containers
         .iter()
@@ -56,18 +95,18 @@ pub fn view<'a>(
         ));
     root = root.push(summary_row);
 
-    // 3. Search and Filter Bar
+    // 4. Search Bar
     let search_bar = row::with_capacity(2)
         .spacing(12)
         .align_y(cosmic::iced::Alignment::Center)
         .push(
             text_input("Search containers or images...", search_query)
                 .on_input(Message::SearchQueryChanged)
-                .width(cosmic::iced::Length::FillPortion(2)),
+                .width(cosmic::iced::Length::Fill),
         );
     root = root.push(search_bar);
 
-    // 4. Containers List / Empty State
+    // 5. Container List or Empty State
     let filtered_containers: Vec<&Container> = containers
         .iter()
         .filter(|c| {
@@ -93,14 +132,13 @@ pub fn view<'a>(
                     column::with_capacity(1)
                         .spacing(12)
                         .align_x(cosmic::iced::Alignment::Center)
-                        .push(text("Connecting to runtime and loading containers...").size(16)),
+                        .push(text("Loading containers...").size(16)),
                 )
                 .padding(40)
                 .center_x(cosmic::iced::Length::Fill)
                 .center_y(cosmic::iced::Length::Fill),
             );
         } else {
-            // Empty State (PRD Section 14.6)
             root = root.push(
                 container(
                     column::with_capacity(3)
@@ -108,7 +146,7 @@ pub fn view<'a>(
                         .align_x(cosmic::iced::Alignment::Center)
                         .push(text::title3("No containers found"))
                         .push(
-                            text("Containers will appear here once created or pulled from registries.")
+                            text("Containers will appear here once created or pulled from a registry.")
                                 .size(14),
                         )
                         .push(
@@ -178,7 +216,6 @@ fn container_card<'a>(c: &'a Container) -> Element<'a, Message> {
                 .size(13),
         );
 
-    // Lifecycle Action Buttons (PRD Section 4.1)
     let id_clone_start = c.id.clone();
     let id_clone_stop = c.id.clone();
     let id_clone_restart = c.id.clone();
