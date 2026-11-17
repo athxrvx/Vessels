@@ -1,14 +1,14 @@
 use crate::app::Message;
 use crate::core::config::AppConfig;
-use cosmic::widget::{column, container, row, text};
+use cosmic::widget::{column, container, text};
 use cosmic::Element;
 
 pub fn view<'a>(config: &'a AppConfig) -> Element<'a, Message> {
-    let mut root = column().spacing(24).padding(24);
+    let mut root = column::with_capacity(3).spacing(24).padding(24);
 
     // Header (PRD Section 9)
     root = root.push(
-        column()
+        column::with_capacity(2)
             .spacing(4)
             .push(text::title1("Settings"))
             .push(text("Application and container runtime preferences").size(14)),
@@ -16,7 +16,7 @@ pub fn view<'a>(config: &'a AppConfig) -> Element<'a, Message> {
 
     // Runtime Settings Card
     let runtime_card = container(
-        column()
+        column::with_capacity(3)
             .spacing(12)
             .push(text::title3("Runtime Configuration"))
             .push(text("Target: Auto-discovery (Podman rootless first, Docker fallback)").size(14))
@@ -30,7 +30,7 @@ pub fn view<'a>(config: &'a AppConfig) -> Element<'a, Message> {
 
     // Appearance Settings Card
     let appearance_card = container(
-        column()
+        column::with_capacity(3)
             .spacing(12)
             .push(text::title3("Appearance"))
             .push(text("Theme: Integrated with COSMIC Desktop system settings").size(14))

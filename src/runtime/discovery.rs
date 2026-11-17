@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +43,7 @@ pub fn discover_runtime_sockets() -> Vec<DiscoveredSocket> {
     }
 
     // 2. Fallback UID-based rootless Podman
-    let uid = unsafe { libc_uid() };
+    let uid = libc_uid();
     let uid_podman = PathBuf::from(format!("/run/user/{uid}/podman/podman.sock"));
     if uid_podman.exists() && !discovered.iter().any(|d| d.path() == uid_podman.as_path()) {
         discovered.push(DiscoveredSocket::RootlessPodman(uid_podman));

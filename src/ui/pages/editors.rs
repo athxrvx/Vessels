@@ -1,20 +1,20 @@
 use crate::app::Message;
-use cosmic::widget::{column, container, row, text};
+use cosmic::widget::{column, container, row, space, text};
 use cosmic::Element;
 
 pub fn view<'a>() -> Element<'a, Message> {
-    let mut root = column().spacing(24).padding(24);
+    let mut root = column::with_capacity(2).spacing(24).padding(24);
 
     // Header (PRD Section 8)
     root = root.push(
-        column()
+        column::with_capacity(2)
             .spacing(4)
             .push(text::title1("Editors"))
             .push(text("Detect installed host editors and configure remote development").size(14)),
     );
 
     // Detected Editors list
-    let editors_col = column()
+    let editors_col = column::with_capacity(4)
         .spacing(12)
         .push(editor_row("Visual Studio Code", "code", true, true))
         .push(editor_row("Zed", "dev.zed.Zed", true, false))
@@ -43,17 +43,17 @@ fn editor_row<'a>(
     };
 
     container(
-        row()
+        row::with_capacity(3)
             .spacing(16)
             .padding(16)
             .align_y(cosmic::iced::Alignment::Center)
             .push(
-                column()
+                column::with_capacity(2)
                     .spacing(4)
                     .push(text::title3(name))
                     .push(text(format!("App ID: {}", id)).size(13)),
             )
-            .push(cosmic::widget::horizontal_space())
+            .push(space::horizontal())
             .push(text(status_str).size(13)),
     )
     .class(cosmic::theme::Container::Card)

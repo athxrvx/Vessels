@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use thiserror::Error;
 
 /// Structured, actionable domain errors across all Vessels subsystems (PRD Section 16)

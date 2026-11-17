@@ -3,11 +3,11 @@ use cosmic::widget::{column, container, row, text, text_input};
 use cosmic::Element;
 
 pub fn view<'a>(search_query: &'a str) -> Element<'a, Message> {
-    let mut root = column().spacing(24).padding(24);
+    let mut root = column::with_capacity(4).spacing(24).padding(24);
 
     // Header (PRD Section 6)
     root = root.push(
-        column()
+        column::with_capacity(2)
             .spacing(4)
             .push(text::title1("Hub"))
             .push(text("Discover, inspect and configure OCI container images").size(14)),
@@ -20,7 +20,7 @@ pub fn view<'a>(search_query: &'a str) -> Element<'a, Message> {
     );
 
     // Categories (PRD Section 6.2)
-    let categories = row()
+    let categories = row::with_capacity(4)
         .spacing(12)
         .push(category_pill("Linux Distributions"))
         .push(category_pill("Programming Languages"))
@@ -32,7 +32,7 @@ pub fn view<'a>(search_query: &'a str) -> Element<'a, Message> {
     // Placeholder message
     root = root.push(
         container(
-            column()
+            column::with_capacity(2)
                 .spacing(10)
                 .align_x(cosmic::iced::Alignment::Center)
                 .push(text::title3("Registry Discovery"))

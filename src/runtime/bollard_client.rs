@@ -1,10 +1,10 @@
+use super::discovery::{discover_runtime_sockets, DiscoveredSocket};
 use super::{ContainerRuntime, RuntimeInfo};
 use crate::core::errors::VesselsError;
 use crate::core::models::{Container, ContainerStatus, MountInfo, PortMapping};
 use async_trait::async_trait;
 use bollard::container::ListContainersOptions;
 use bollard::Docker;
-use std::collections::HashMap;
 
 pub struct BollardRuntime {
     client: Option<Docker>,
@@ -24,45 +24,97 @@ impl BollardRuntime {
     }
 
     pub fn auto_connect() -> Self {
-        Self::new("auto".to_string(), "Podman/Docker".to_string())
+        Self::new("auto".to_string(), "Auto (Podman/Docker)".to_string())
     }
 }
 
 #[async_trait]
 impl ContainerRuntime for BollardRuntime {
     async fn connect(&mut self) -> Result<RuntimeInfo, VesselsError> {
-        let client = if self.endpoint == "auto" {
-            Docker::connect_with_local_defaults().map_err(|e| VesselsError::RuntimeUnavailable {
-                endpoint: "local-defaults".to_string(),
-                details: e.to_string(),
-            })?
+        let (client, name, endpoint) = if self.endpoint == "auto" {
+            let sockets = discover_runtime_sockets();
+            if sockets.is_empty() {
+                // If discovery found no existing socket file, attempt standard rootless Podman default
+                let fallback = Docker::connect_with_local_defaults().map_err(|e| {
+                    VesselsError::RuntimeUnavailable {
+                        endpoint: "Podman/Docker default socket".to_string(),
+                        details: format!("No active Podman or Docker socket found: {e}"),
+                    }
+                })?;
+                (fallback, "Local Engine".to_string(), "default".to_string())
+            } else {
+                let mut connected = None;
+                let mut last_err = None;
+
+                for socket in sockets {
+                    let path_str = socket.path().to_string_lossy().to_string();
+                    let display = socket.display_name().to_string();
+
+                    match Docker::connect_with_unix(&path_str, 120, bollard::API_DEFAULT_VERSION) {
+                        Ok(c) => match c.version().await {
+                            Ok(v) => {
+                                let ver = v.version.unwrap_or_else(|| "unknown".to_string());
+                                connected = Some((c, display, path_str, ver));
+                                break;
+                            }
+                            Err(e) => {
+                                last_err = Some(e.to_string());
+                            }
+                        },
+                        Err(e) => {
+                            last_err = Some(e.to_string());
+                        }
+                    }
+                }
+
+                if let Some((c, display, path, ver)) = connected {
+                    let info = RuntimeInfo {
+                        name: display.clone(),
+                        version: ver,
+                        endpoint: path.clone(),
+                        is_rootless: true,
+                    };
+                    self.info = Some(info.clone());
+                    self.client = Some(c);
+                    self.endpoint = path;
+                    self.runtime_name = display;
+                    return Ok(info);
+                }
+
+                return Err(VesselsError::RuntimeUnavailable {
+                    endpoint: "Auto-discovery".to_string(),
+                    details: last_err.unwrap_or_else(|| "Socket exists but failed to respond".to_string()),
+                });
+            }
         } else {
-            Docker::connect_with_unix(&self.endpoint, 120, bollard::API_DEFAULT_VERSION).map_err(
-                |e| VesselsError::RuntimeUnavailable {
+            let c = Docker::connect_with_unix(&self.endpoint, 120, bollard::API_DEFAULT_VERSION)
+                .map_err(|e| VesselsError::RuntimeUnavailable {
                     endpoint: self.endpoint.clone(),
                     details: e.to_string(),
-                },
-            )?
+                })?;
+            (c, self.runtime_name.clone(), self.endpoint.clone())
         };
 
         let version_info = client
             .version()
             .await
             .map_err(|e| VesselsError::RuntimeUnavailable {
-                endpoint: self.endpoint.clone(),
+                endpoint: endpoint.clone(),
                 details: e.to_string(),
             })?;
 
         let version_str = version_info.version.unwrap_or_else(|| "unknown".to_string());
         let info = RuntimeInfo {
-            name: self.runtime_name.clone(),
+            name: name.clone(),
             version: version_str,
-            endpoint: self.endpoint.clone(),
+            endpoint: endpoint.clone(),
             is_rootless: true,
         };
 
         self.info = Some(info.clone());
         self.client = Some(client);
+        self.runtime_name = name;
+        self.endpoint = endpoint;
         Ok(info)
     }
 

@@ -1,0 +1,44 @@
+app-id: io.github.atharva.Vessels
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: vessels
+
+finish-args:
+  # Wayland display server and IPC
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+
+  # Network access for OCI registry communication (Hub)
+  - --share=network
+
+  # Container Engine Runtime Access (PRD Section 13.2)
+  # Rootless Podman unix domain socket in XDG_RUNTIME_DIR
+  - --filesystem=xdg-run/podman:rw
+
+  # Optional system Podman socket (read-only fallback)
+  - --filesystem=/run/podman:ro
+
+  # System notifications portal
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/vessels/cargo
+
+modules:
+  - name: vessels
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml
+      - cargo --offline build --release --verbose
+      - install -Dm755 target/release/vessels /app/bin/vessels
+      - install -Dm644 data/io.github.atharva.Vessels.desktop /app/share/applications/io.github.atharva.Vessels.desktop
+      - install -Dm644 data/io.github.atharva.Vessels.metainfo.xml /app/share/metainfo/io.github.atharva.Vessels.metainfo.xml
+    sources:
+      - type: dir
+        path: ../../

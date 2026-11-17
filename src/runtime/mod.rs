@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod bollard_client;
 pub mod discovery;
 

@@ -1,6 +1,6 @@
 use crate::app::Message;
 use crate::core::models::{Container, ContainerStatus};
-use cosmic::widget::{button, column, container, row, scrollable, text, text_input};
+use cosmic::widget::{button, column, container, row, scrollable, space, text, text_input};
 use cosmic::Element;
 
 pub fn view<'a>(
@@ -9,19 +9,19 @@ pub fn view<'a>(
     selected_status_filter: Option<ContainerStatus>,
     is_loading: bool,
 ) -> Element<'a, Message> {
-    let mut root = column().spacing(24).padding(24);
+    let mut root = column::with_capacity(5).spacing(24).padding(24);
 
     // 1. Header Area (PRD Section 4.1)
-    let header = row()
+    let header = row::with_capacity(3)
         .spacing(16)
         .align_y(cosmic::iced::Alignment::Center)
         .push(
-            column()
+            column::with_capacity(2)
                 .spacing(4)
                 .push(text::title1("Containers"))
                 .push(text("Manage individual containers and manual groups").size(14)),
         )
-        .push(cosmic::widget::horizontal_space())
+        .push(space::horizontal())
         .push(
             button::standard("Refresh")
                 .on_press(Message::RefreshContainers),
@@ -39,9 +39,9 @@ pub fn view<'a>(
         .filter(|c| c.status == ContainerStatus::Stopped)
         .count();
 
-    let summary_row = row()
+    let summary_row = row::with_capacity(3)
         .spacing(16)
-        .push(summary_card("Total", total_count, None, selected_status_filter == None))
+        .push(summary_card("Total", total_count, None, selected_status_filter.is_none()))
         .push(summary_card(
             "Running",
             running_count,
@@ -57,7 +57,7 @@ pub fn view<'a>(
     root = root.push(summary_row);
 
     // 3. Search and Filter Bar
-    let search_bar = row()
+    let search_bar = row::with_capacity(2)
         .spacing(12)
         .align_y(cosmic::iced::Alignment::Center)
         .push(
@@ -90,7 +90,7 @@ pub fn view<'a>(
         if is_loading {
             root = root.push(
                 container(
-                    column()
+                    column::with_capacity(1)
                         .spacing(12)
                         .align_x(cosmic::iced::Alignment::Center)
                         .push(text("Connecting to runtime and loading containers...").size(16)),
@@ -103,7 +103,7 @@ pub fn view<'a>(
             // Empty State (PRD Section 14.6)
             root = root.push(
                 container(
-                    column()
+                    column::with_capacity(3)
                         .spacing(12)
                         .align_x(cosmic::iced::Alignment::Center)
                         .push(text::title3("No containers found"))
@@ -112,10 +112,10 @@ pub fn view<'a>(
                                 .size(14),
                         )
                         .push(
-                            row()
+                            row::with_capacity(2)
                                 .spacing(12)
                                 .push(
-                                    button::primary("Explore Hub")
+                                    button::suggested("Explore Hub")
                                         .on_press(Message::Navigate(crate::ui::navigation::Page::Hub)),
                                 )
                                 .push(
@@ -129,7 +129,7 @@ pub fn view<'a>(
             );
         }
     } else {
-        let mut list_column = column().spacing(12);
+        let mut list_column = column::with_capacity(filtered_containers.len()).spacing(12);
         for container_item in filtered_containers {
             list_column = list_column.push(container_card(container_item));
         }
@@ -145,12 +145,12 @@ fn summary_card<'a>(
     filter: Option<ContainerStatus>,
     is_active: bool,
 ) -> Element<'a, Message> {
-    let content = column()
+    let content = column::with_capacity(2)
         .spacing(4)
         .push(text(label).size(12))
         .push(text::title2(count.to_string()));
 
-    let mut btn = button::standard(content)
+    let mut btn = button::custom(content)
         .on_press(Message::FilterStatus(filter))
         .width(cosmic::iced::Length::Fill);
 
@@ -164,10 +164,10 @@ fn summary_card<'a>(
 fn container_card<'a>(c: &'a Container) -> Element<'a, Message> {
     let status_badge = text(format!("● {}", c.status)).size(13);
 
-    let info_column = column()
+    let info_column = column::with_capacity(2)
         .spacing(4)
         .push(
-            row()
+            row::with_capacity(2)
                 .spacing(10)
                 .align_y(cosmic::iced::Alignment::Center)
                 .push(text::title3(&c.name))
@@ -184,7 +184,7 @@ fn container_card<'a>(c: &'a Container) -> Element<'a, Message> {
     let id_clone_restart = c.id.clone();
     let id_clone_delete = c.id.clone();
 
-    let mut actions = row().spacing(8).align_y(cosmic::iced::Alignment::Center);
+    let mut actions = row::with_capacity(3).spacing(8).align_y(cosmic::iced::Alignment::Center);
 
     if c.status == ContainerStatus::Running {
         actions = actions
@@ -199,7 +199,7 @@ fn container_card<'a>(c: &'a Container) -> Element<'a, Message> {
     } else {
         actions = actions
             .push(
-                button::primary("Start")
+                button::suggested("Start")
                     .on_press(Message::StartContainer(id_clone_start)),
             );
     }
@@ -209,12 +209,12 @@ fn container_card<'a>(c: &'a Container) -> Element<'a, Message> {
             .on_press(Message::DeleteContainer(id_clone_delete)),
     );
 
-    let card_layout = row()
+    let card_layout = row::with_capacity(3)
         .spacing(16)
         .padding(16)
         .align_y(cosmic::iced::Alignment::Center)
         .push(info_column)
-        .push(cosmic::widget::horizontal_space())
+        .push(space::horizontal())
         .push(actions);
 
     container(card_layout)

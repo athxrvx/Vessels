@@ -1,29 +1,29 @@
 use crate::app::Message;
-use cosmic::widget::{button, column, container, row, text};
+use cosmic::widget::{button, column, container, row, space, text};
 use cosmic::Element;
 
 pub fn view<'a>() -> Element<'a, Message> {
-    let mut root = column().spacing(24).padding(24);
+    let mut root = column::with_capacity(2).spacing(24).padding(24);
 
     // Header (PRD Section 7)
     root = root.push(
-        row()
+        row::with_capacity(3)
             .spacing(16)
             .align_y(cosmic::iced::Alignment::Center)
             .push(
-                column()
+                column::with_capacity(2)
                     .spacing(4)
                     .push(text::title1("Projects"))
                     .push(text("Manage development workspaces and container environments").size(14)),
             )
-            .push(cosmic::widget::horizontal_space())
-            .push(button::primary("New Project")),
+            .push(space::horizontal())
+            .push(button::suggested("New Project")),
     );
 
     // Empty state (PRD Section 14.6)
     root = root.push(
         container(
-            column()
+            column::with_capacity(3)
                 .spacing(12)
                 .align_x(cosmic::iced::Alignment::Center)
                 .push(text::title3("No projects registered"))
@@ -32,9 +32,9 @@ pub fn view<'a>() -> Element<'a, Message> {
                         .size(14),
                 )
                 .push(
-                    row()
+                    row::with_capacity(2)
                         .spacing(12)
-                        .push(button::primary("Add Existing Project"))
+                        .push(button::suggested("Add Existing Project"))
                         .push(button::standard("Import Compose")),
                 ),
         )

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.atharva.Vessels</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Vessels</name>
+  <summary>Native container and development environment manager for COSMIC</summary>
+  <description>
+    <p>
+      Vessels is a native COSMIC desktop application for discovering, configuring,
+      creating, organizing and managing containerized development environments.
+    </p>
+    <p>
+      It integrates container management, OCI image hub discovery, multi-container
+      workspaces and host editor launching into a clean, card-driven interface.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.atharva.Vessels.desktop</launchable>
+  <developer_name>Atharva</developer_name>
+  <url type="homepage">https://github.com/atharva/Vessels</url>
+  <provides>
+    <binary>vessels</binary>
+  </provides>
+</component>
